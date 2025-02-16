@@ -82,6 +82,7 @@ const Dx = ({
   const normals = useMemo(() => CannonUtils.getNormals(geometry), [geometry]);
 
   const resetRoll = useCallback(() => {
+    api.wakeUp(); // resumes physics on this object
     setAtRest(false);
     setRoll(null);
     setHover(false);
@@ -99,21 +100,30 @@ const Dx = ({
     // the restInterval that triggers atRest captures a state from 500ms prior
     if (atRest && diceInPlay[id] && !diceInPlay[id].resolved) {
       api.velocity.set(0, 0, 0);
+      api.sleep(); // stops physics on this object
 
-      const result = CannonUtils.getResult(
-        geometry.name,
-        ref.current.matrixWorld,
-        centroids
-      );
+      // use timeout of 0 to run immediately but async
+      setTimeout(() => {
+        const result = CannonUtils.getResult(
+          geometry.name,
+          ref.current.matrixWorld,
+          centroids
+        );
+  
+        // if (!result) {
+        //   resetRoll();
+        //   return;
+        // }
 
-      const resultFudge =
-        result === 0
-          ? "min"
-          : result === centroids.length - 1
-          ? "max"
-          : "neutral";
-      onDieResolve(id, result + 1, resultFudge);
-      setRoll(result);
+        const resultFudge =
+          result === 0
+            ? "min"
+            : result === centroids.length - 1
+            ? "max"
+            : "neutral";
+        onDieResolve(id, result + 1, resultFudge);
+        setRoll(result);
+      }, 0);
     }
   }, [api, atRest, centroids, diceInPlay, onDieResolve]);
 

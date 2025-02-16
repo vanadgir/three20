@@ -10,7 +10,7 @@ import Credits from "./Credits";
 
 const Options = ({}) => {
   const { volumes, updateVolume } = useAudio();
-  const { diceAttributes, diceOptions, updateAttributes, updateOptions } =
+  const { diceAttributes, diceOptions, updateAttributes, updateOptions, gravity, setGravity } =
     useDice();
   const [selectedForColor, setSelectedForColor] = useState("D4");
   const [selectedForSize, setSelectedForSize] = useState("D4");
@@ -102,6 +102,15 @@ const Options = ({}) => {
               ? diceAttributes?.sizes.global
               : diceAttributes.sizes[selectedForSize] ?? 0
           }
+        />
+        <Slider
+          className={styles.slider}
+          label="Gravity"
+          min={-30}
+          max={-1}
+          step={0.5}
+          update={(value) => setGravity([0, value, 0])}
+          value={gravity ? gravity[1] : -9.81}
         />
         {!diceOptions.globalSize && (
           <div className={styles.sizeButtons}>

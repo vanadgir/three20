@@ -42,6 +42,7 @@ export const AudioProvider = ({ children }) => {
   const volumes = useRef(defaultVolumes);
 
   const sfxListener = useMemo(() => new AudioListener(), []);
+  const bgmListener = useMemo(() => new AudioListener(), []);
 
   const allRollResultSFX = useMemo(
     () => ({
@@ -126,7 +127,7 @@ export const AudioProvider = ({ children }) => {
 
   // BEGIN BGM LOGIC
   const bgmBuffersRef = useRef([]);
-  const bgmAudioRef = useRef(new Audio(new AudioListener()));
+  const bgmAudioRef = useRef(new Audio(bgmListener));
   const [bgmLoaded, setBGMLoaded] = useState(false);
   const [bgmPlaying, setBgmPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(0);

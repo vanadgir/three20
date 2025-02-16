@@ -188,29 +188,34 @@ class CannonUtils {
     return quaternion;
   }
 
-  // returns the roll result by calculating dot product (a • b)
-  // where a = (center - centroid) and b = up
+  // looks for direction vector with y component close to 1 (or -1 for D4)
   static getResult(name, mat, centroids) {
     const worldCenter = new Vector3(0, 0, 0).applyMatrix4(mat);
-    const trueVertical =
-      name === "D4" ? new Vector3(0, -1, 0) : new Vector3(0, 1, 0);
-    let largestDotProd = -Infinity;
+    const worldCentroidPos = new Vector3();
+    const direction = new Vector3();
+
     let result;
 
-    centroids.map((c, index) => {
-      const worldPosition = new Vector3(c.x, c.y, c.z).applyMatrix4(mat);
-      const direction = new Vector3()
-        .subVectors(worldPosition, worldCenter)
-        .normalize();
-      const dotProd = direction.dot(trueVertical);
-      if (dotProd > largestDotProd) {
-        largestDotProd = dotProd;
-        result = index;
+    centroids.forEach((c, index) => {
+      worldCentroidPos.set(c.x, c.y, c.z).applyMatrix4(mat);
+      direction.subVectors(worldCentroidPos, worldCenter).normalize();
+
+      if (name === "D4") {
+        if (direction.y >= -0.9) {
+          return;
+        }
+      } else {
+        if (direction.y <= 0.9) {
+          return; 
+        }
       }
+
+      result = index;
     });
 
     return result;
   }
+  
 }
 
 export default CannonUtils;
