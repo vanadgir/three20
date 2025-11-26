@@ -150,8 +150,8 @@ export const AudioProvider = ({ children }) => {
         bgmAudioRef.current.setBuffer(bgmBuffersRef.current[0]);
         bgmAudioRef.current.setVolume(0.5);
         bgmAudioRef.current.setLoop(true);
-        bgmAudioRef.current.play();
-        setBgmPlaying(true);
+        // bgmAudioRef.current.pause();
+        // setBgmPlaying(false);
         console.log("BGM loaded and playing");
       })
       .catch((err) => {

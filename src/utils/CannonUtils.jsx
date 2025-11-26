@@ -189,33 +189,31 @@ class CannonUtils {
   }
 
   // looks for direction vector with y component close to 1 (or -1 for D4)
+  // early out after finding side index
   static getResult(name, mat, centroids) {
     const worldCenter = new Vector3(0, 0, 0).applyMatrix4(mat);
     const worldCentroidPos = new Vector3();
     const direction = new Vector3();
 
-    let result;
+    for (let i = centroids.length-1; i >= 0; i--) {
+      const c = centroids[i];
 
-    centroids.forEach((c, index) => {
       worldCentroidPos.set(c.x, c.y, c.z).applyMatrix4(mat);
       direction.subVectors(worldCentroidPos, worldCenter).normalize();
 
       if (name === "D4") {
-        if (direction.y >= -0.9) {
-          return;
+        if (direction.y < -0.95) {
+          return i;
         }
       } else {
-        if (direction.y <= 0.9) {
-          return; 
+        if (direction.y > 0.95) {
+          return i;
         }
       }
+    }
 
-      result = index;
-    });
-
-    return result;
+    return null;
   }
-  
 }
 
 export default CannonUtils;

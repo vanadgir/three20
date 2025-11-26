@@ -22,35 +22,45 @@ const BGM = () => {
     return `${minutes}:${seconds}`;
   };
 
+  const safeDuration = trackDuration || 0;
+
   return (
-    <>
-      {bgmLoaded && (
-        <div className={styles.bgmMenu}>
-          <span className={styles.bgmButtons}>
-            <input
-              className={bgmPlaying ? "" : styles.paused}
-              type="image"
-              src={bgmPlaying ? pause : play}
-              onClick={togglePlayback}
-            />
-            <input type="image" src={next} onClick={nextTrack} />
-          </span>
-          <input
-            className={styles.trackProgress}
-            type="range"
-            min={0}
-            max={trackDuration}
-            step={0.1}
-            value={playbackPosition}
-            onChange={(e) => playFromPosition(parseFloat(e.target.value))}
-          />
-          <span className={styles.trackDuration}>
-            {convertTime(playbackPosition)} / {convertTime(trackDuration)}
-          </span>
-        </div>
-      )}
-    </>
+    <div className={styles.bgmMenu}>
+      <span className={styles.bgmButtons}>
+        <input
+          className={bgmPlaying ? "" : styles.paused}
+          type="image"
+          src={bgmPlaying ? pause : play}
+          onClick={togglePlayback}
+          disabled={!bgmLoaded}
+        />
+        <input
+          type="image"
+          src={next}
+          onClick={nextTrack}
+          disabled={!bgmLoaded}
+        />
+      </span>
+
+      <input
+        className={styles.trackProgress}
+        type="range"
+        min={0}
+        max={safeDuration || 1}
+        step={0.1}
+        value={bgmLoaded ? playbackPosition : 0}
+        onChange={(e) => playFromPosition(parseFloat(e.target.value))}
+        disabled={!bgmLoaded}
+      />
+
+      <span className={styles.trackDuration}>
+        {bgmLoaded
+          ? `${convertTime(playbackPosition)} / ${convertTime(trackDuration)}`
+          : "Loading..."}
+      </span>
+    </div>
   );
 };
+
 
 export default BGM;
