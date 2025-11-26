@@ -33,6 +33,7 @@ export const DiceProvider = ({ children }) => {
   const [diceOptions, setDiceOptions] = useState(defaultDiceOptions);
   const [diceInPlay, setDiceInPlay] = useState({});
   const { playRollResultSFX } = useAudio();
+  const [gravity, setGravity] = useState([0, -9.8, 0]);
 
   const diceCounts = useMemo(() => {
     const total = Object.keys(diceInPlay).length;
@@ -224,6 +225,8 @@ export const DiceProvider = ({ children }) => {
           submitDiceFormula,
           updateAttributes,
           updateOptions,
+          gravity,
+          setGravity
         }}
       >
         {children}

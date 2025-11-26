@@ -106,11 +106,11 @@ const Options = ({}) => {
         <Slider
           className={styles.slider}
           label="Gravity"
-          min={-30}
-          max={-1}
-          step={0.5}
-          update={(value) => setGravity([0, value, 0])}
-          value={gravity ? gravity[1] : -9.81}
+          min={1}
+          max={12}
+          step={0.1}
+          update={(value) => setGravity([0, -value, 0])}
+          value={gravity ? -gravity[1] : 9.81}
         />
         {!diceOptions.globalSize && (
           <div className={styles.sizeButtons}>
