@@ -1,16 +1,15 @@
 import { Suspense } from "react";
 import { Physics } from "@react-three/cannon";
-import { OrbitControls, Text } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 
 import { useDice } from "../../contexts";
 import TablePlane from "./TablePlane";
 
-import font from "../../../assets/fonts/TypeMachine.ttf";
 import styles from "./R3F.module.scss";
 
 const R3F = () => {
-  const { diceInPlay } = useDice();
+  const { diceInPlay, gravity } = useDice();
   return (
     <div className={styles.R3F}>
       <Canvas
@@ -21,23 +20,23 @@ const R3F = () => {
       >
         <directionalLight
           castShadow
-          position={[2.5, 8, 5]}
-          shadow-mapSize={[1024, 1024]}
+          position={[10, 15, 10]}
+          shadow-mapSize={[2048, 2048]} 
+          intensity={1.5} 
         >
+          <ambientLight intensity={0.1}/>
           <orthographicCamera
             attach="shadow-camera"
-            args={[-10, 10, 10, -10]}
+            args={[-25, 25, 25, -25, 1, 50]} 
           />
         </directionalLight>
-        <Physics>
+        <Physics gravity={gravity}>
           <Suspense>
             <TablePlane />
           </Suspense>
           {Object.keys(diceInPlay).map((d) => diceInPlay[d]?.component)}
         </Physics>
         <OrbitControls />
-        {/* HACK(tb): for some stupid reason, Text needs to be prewarmed */}
-        <Text font={font} characters="0123456789." />
       </Canvas>
     </div>
   );

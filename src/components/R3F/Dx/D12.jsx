@@ -14,11 +14,7 @@ const D12 = (props) => {
     return retVal;
   }, []);
 
-  return (
-    <Dx {...props} geometry={geometry}>
-      <dodecahedronGeometry args={[props.radius]} />
-    </Dx>
-  );
+  return <Dx {...props} geometry={geometry} />;
 };
 
 export default D12;

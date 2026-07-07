@@ -4,6 +4,10 @@
 
 import { Quaternion, Vector3 } from "three";
 
+const RESULT_THRESHOLD = 0.95;
+const localUp = new Vector3();
+const inverseRotation = new Quaternion();
+
 class CannonUtils {
   // turns mesh information into physics compatible format
   static toConvexPolyhedronArgs(geometry) {
@@ -188,28 +192,29 @@ class CannonUtils {
     return quaternion;
   }
 
-  // returns the roll result by calculating dot product (a • b)
-  // where a = (center - centroid) and b = up
-  static getResult(name, mat, centroids) {
-    const worldCenter = new Vector3(0, 0, 0).applyMatrix4(mat);
-    const trueVertical =
-      name === "D4" ? new Vector3(0, -1, 0) : new Vector3(0, 1, 0);
-    let largestDotProd = -Infinity;
-    let result;
+  // transforms world up (down for D4, which reads its bottom face) into the
+  // die's local space, then finds the face direction most aligned with it.
+  // returns null when no face is aligned enough, i.e. the die is cocked.
+  // rotation comes from matrixWorld because @react-three/cannon writes the
+  // object's matrix directly and never updates position/quaternion
+  static getResult(name, matrixWorld, faceDirections) {
+    localUp
+      .set(0, name === "D4" ? -1 : 1, 0)
+      .applyQuaternion(
+        inverseRotation.setFromRotationMatrix(matrixWorld).invert()
+      );
 
-    centroids.map((c, index) => {
-      const worldPosition = new Vector3(c.x, c.y, c.z).applyMatrix4(mat);
-      const direction = new Vector3()
-        .subVectors(worldPosition, worldCenter)
-        .normalize();
-      const dotProd = direction.dot(trueVertical);
-      if (dotProd > largestDotProd) {
-        largestDotProd = dotProd;
-        result = index;
+    let best = -Infinity;
+    let result = null;
+    for (let i = 0; i < faceDirections.length; i++) {
+      const dot = faceDirections[i].dot(localUp);
+      if (dot > best) {
+        best = dot;
+        result = i;
       }
-    });
+    }
 
-    return result;
+    return best >= RESULT_THRESHOLD ? result : null;
   }
 }
 

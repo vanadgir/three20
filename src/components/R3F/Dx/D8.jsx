@@ -14,11 +14,7 @@ const D8 = (props) => {
     return retVal;
   }, []);
 
-  return (
-    <Dx geometry={geometry} {...props}>
-      <octahedronGeometry args={[props.radius]} />
-    </Dx>
-  );
+  return <Dx {...props} geometry={geometry} />;
 };
 
 export default D8;

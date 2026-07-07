@@ -14,11 +14,7 @@ const D20 = (props) => {
     return retVal;
   }, []);
 
-  return (
-    <Dx {...props} geometry={geometry}>
-      <icosahedronGeometry args={[props.radius, 0]} />
-    </Dx>
-  );
+  return <Dx {...props} geometry={geometry} />;
 };
 
 export default D20;

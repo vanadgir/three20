@@ -7,7 +7,7 @@ import {
 } from "react";
 import { Color } from "three";
 
-import { useAudio } from "./AudioContext";
+import { useSFX } from "./AudioContext";
 import { diceComponents } from "../components/R3F/Dx";
 
 import {
@@ -27,12 +27,21 @@ export const DiceContext = createContext({
   updateAttributes: (attribute, key, value) => undefined,
 });
 
+// stable subset consumed by every die, kept separate from DiceContext so
+// dice don't re-render each time another die resolves
+export const DiceActionsContext = createContext({
+  diceOptions: defaultDiceOptions,
+  onDieResolve: (id, result, resultFudge) => undefined,
+  resetDie: (key) => undefined,
+});
+
 export const DiceProvider = ({ children }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [diceAttributes, setDiceAttributes] = useState(defaultDiceAttributes);
   const [diceOptions, setDiceOptions] = useState(defaultDiceOptions);
   const [diceInPlay, setDiceInPlay] = useState({});
-  const { playRollResultSFX } = useAudio();
+  const { playRollResultSFX } = useSFX();
+  const [gravity, setGravity] = useState([0, -9.8, 0]);
 
   const diceCounts = useMemo(() => {
     const total = Object.keys(diceInPlay).length;
@@ -113,37 +122,31 @@ export const DiceProvider = ({ children }) => {
 
   const createDice = useCallback(
     (listToCreate, shouldClear) => {
-      let dice = diceInPlay;
-      if (shouldClear) {
-        dice = {};
-      }
-      const addedDice = listToCreate.reduce(
-        (prev, cur, i) => ({
-          ...prev,
-          [currentIndex + i]: createDx(cur, currentIndex + i),
-        }),
-        {}
+      const addedDice = {};
+      listToCreate.forEach((dName, i) => {
+        addedDice[currentIndex + i] = createDx(dName, currentIndex + i);
+      });
+      setDiceInPlay((prev) =>
+        shouldClear ? addedDice : { ...prev, ...addedDice }
       );
-      setDiceInPlay({ ...dice, ...addedDice });
       setCurrentIndex(currentIndex + listToCreate.length);
     },
-    [currentIndex, diceAttributes, diceInPlay, createDx]
+    [currentIndex, createDx]
   );
 
   const onDieResolve = useCallback(
     (id, result, resultFudge) => {
-      try {
-        setDiceInPlay({
-          ...diceInPlay,
-          [id]: { ...diceInPlay[id], resolved: true, resolveValue: result },
-        });
-        playRollResultSFX(resultFudge);
-      } catch (e) {
-        console.error(e);
-        return;
-      }
+      setDiceInPlay((prev) =>
+        prev[id]
+          ? {
+              ...prev,
+              [id]: { ...prev[id], resolved: true, resolveValue: result },
+            }
+          : prev
+      );
+      playRollResultSFX(resultFudge);
     },
-    [diceInPlay, playRollResultSFX]
+    [playRollResultSFX]
   );
 
   const submitDiceFormula = useCallback(
@@ -173,15 +176,16 @@ export const DiceProvider = ({ children }) => {
     submitDiceFormula(diceCounts.formula);
   }, [diceCounts.formula, submitDiceFormula]);
 
-  const resetDie = useCallback(
-    (key) => {
-      setDiceInPlay({
-        ...diceInPlay,
-        [key]: { ...diceInPlay[key], resolved: false, resolveValue: -1 },
-      });
-    },
-    [diceInPlay]
-  );
+  const resetDie = useCallback((key) => {
+    setDiceInPlay((prev) =>
+      prev[key]
+        ? {
+            ...prev,
+            [key]: { ...prev[key], resolved: false, resolveValue: -1 },
+          }
+        : prev
+    );
+  }, []);
 
   const clearBoard = useCallback(() => {
     setDiceInPlay({});
@@ -208,27 +212,49 @@ export const DiceProvider = ({ children }) => {
     [diceOptions]
   );
 
+  const diceActions = useMemo(
+    () => ({ diceOptions, onDieResolve, resetDie }),
+    [diceOptions, onDieResolve, resetDie]
+  );
+
+  const diceValue = useMemo(
+    () => ({
+      clearBoard,
+      createDice,
+      diceAttributes,
+      diceCounts,
+      diceInPlay,
+      diceOptions,
+      onDieResolve,
+      rerollBoard,
+      resetDie,
+      submitDiceFormula,
+      updateAttributes,
+      updateOptions,
+      gravity,
+      setGravity,
+    }),
+    [
+      clearBoard,
+      createDice,
+      diceAttributes,
+      diceCounts,
+      diceInPlay,
+      diceOptions,
+      onDieResolve,
+      rerollBoard,
+      resetDie,
+      submitDiceFormula,
+      updateAttributes,
+      updateOptions,
+      gravity,
+    ]
+  );
+
   return (
-    <>
-      <DiceContext.Provider
-        value={{
-          clearBoard,
-          createDice,
-          diceAttributes,
-          diceCounts,
-          diceInPlay,
-          diceOptions,
-          onDieResolve,
-          rerollBoard,
-          resetDie,
-          submitDiceFormula,
-          updateAttributes,
-          updateOptions,
-        }}
-      >
-        {children}
-      </DiceContext.Provider>
-    </>
+    <DiceActionsContext.Provider value={diceActions}>
+      <DiceContext.Provider value={diceValue}>{children}</DiceContext.Provider>
+    </DiceActionsContext.Provider>
   );
 };
 
@@ -237,4 +263,8 @@ export function useDice() {
     throw new Error("DiceContext must be defined!");
   }
   return useContext(DiceContext);
+}
+
+export function useDiceActions() {
+  return useContext(DiceActionsContext);
 }

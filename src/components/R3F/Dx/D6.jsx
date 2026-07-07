@@ -56,11 +56,7 @@ const D6 = (props) => {
     return retVal;
   }, [geometryArgs]);
 
-  return (
-    <Dx {...props} geometry={geometry}>
-      <polyhedronGeometry args={[...geometryArgs, props.radius, 0]} />
-    </Dx>
-  );
+  return <Dx {...props} geometry={geometry} />;
 };
 
 export default D6;

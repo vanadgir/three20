@@ -1,2 +1,2 @@
-export { AudioProvider, useAudio } from "./AudioContext";
-export { DiceProvider, useDice } from "./DiceContext";
+export { AudioProvider, useAudio, useSFX } from "./AudioContext";
+export { DiceProvider, useDice, useDiceActions } from "./DiceContext";

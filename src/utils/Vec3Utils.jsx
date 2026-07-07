@@ -20,8 +20,8 @@ export const randomAngularVelocity = () => {
 
 export const randomSpawnPosition = () => {
   return [
-    Math.random() * 10 - 6,
+    Math.random() * 25 - 10,
     Math.random() * 7 + 3,
-    Math.random() * 10 - 6,
+    Math.random() * 25 - 10,
   ];
 };
