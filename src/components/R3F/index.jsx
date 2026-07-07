@@ -1,12 +1,11 @@
 import { Suspense } from "react";
 import { Physics } from "@react-three/cannon";
-import { OrbitControls, Text } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 
 import { useDice } from "../../contexts";
 import TablePlane from "./TablePlane";
 
-import font from "../../../assets/fonts/TypeMachine.ttf";
 import styles from "./R3F.module.scss";
 
 const R3F = () => {
@@ -38,8 +37,6 @@ const R3F = () => {
           {Object.keys(diceInPlay).map((d) => diceInPlay[d]?.component)}
         </Physics>
         <OrbitControls />
-        {/* HACK(tb): for some stupid reason, Text needs to be prewarmed */}
-        <Text font={font} characters="0123456789." />
       </Canvas>
     </div>
   );

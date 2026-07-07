@@ -14,11 +14,7 @@ const D4 = (props) => {
     return retVal;
   }, []);
 
-  return (
-    <Dx {...props} geometry={geometry} inertiaMod={D4_CONST.INERTIA_MOD}>
-      <tetrahedronGeometry args={[props.radius, 0]} />
-    </Dx>
-  );
+  return <Dx {...props} geometry={geometry} inertiaMod={D4_CONST.INERTIA_MOD} />;
 };
 
 export default D4;

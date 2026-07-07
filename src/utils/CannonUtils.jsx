@@ -4,6 +4,10 @@
 
 import { Quaternion, Vector3 } from "three";
 
+const RESULT_THRESHOLD = 0.95;
+const localUp = new Vector3();
+const inverseRotation = new Quaternion();
+
 class CannonUtils {
   // turns mesh information into physics compatible format
   static toConvexPolyhedronArgs(geometry) {
@@ -188,31 +192,29 @@ class CannonUtils {
     return quaternion;
   }
 
-  // looks for direction vector with y component close to 1 (or -1 for D4)
-  // early out after finding side index
-  static getResult(name, mat, centroids) {
-    const worldCenter = new Vector3(0, 0, 0).applyMatrix4(mat);
-    const worldCentroidPos = new Vector3();
-    const direction = new Vector3();
+  // transforms world up (down for D4, which reads its bottom face) into the
+  // die's local space, then finds the face direction most aligned with it.
+  // returns null when no face is aligned enough, i.e. the die is cocked.
+  // rotation comes from matrixWorld because @react-three/cannon writes the
+  // object's matrix directly and never updates position/quaternion
+  static getResult(name, matrixWorld, faceDirections) {
+    localUp
+      .set(0, name === "D4" ? -1 : 1, 0)
+      .applyQuaternion(
+        inverseRotation.setFromRotationMatrix(matrixWorld).invert()
+      );
 
-    for (let i = centroids.length-1; i >= 0; i--) {
-      const c = centroids[i];
-
-      worldCentroidPos.set(c.x, c.y, c.z).applyMatrix4(mat);
-      direction.subVectors(worldCentroidPos, worldCenter).normalize();
-
-      if (name === "D4") {
-        if (direction.y < -0.95) {
-          return i;
-        }
-      } else {
-        if (direction.y > 0.95) {
-          return i;
-        }
+    let best = -Infinity;
+    let result = null;
+    for (let i = 0; i < faceDirections.length; i++) {
+      const dot = faceDirections[i].dot(localUp);
+      if (dot > best) {
+        best = dot;
+        result = i;
       }
     }
 
-    return null;
+    return best >= RESULT_THRESHOLD ? result : null;
   }
 }
 

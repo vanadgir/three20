@@ -1,4 +1,5 @@
 import CannonUtils from "./CannonUtils";
+import { applyAtlasUVs, getDiceTexture } from "./DiceTextures";
 import {
   defaultDiceAttributes,
   defaultDiceOptions,
@@ -23,10 +24,12 @@ import {
 } from "./Vec3Utils";
 
 export {
+  applyAtlasUVs,
   CannonUtils,
   defaultDiceAttributes,
   defaultDiceOptions,
   defaultVolumes,
+  getDiceTexture,
   D4_CONST,
   D6_CONST,
   D8_CONST,

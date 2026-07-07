@@ -2,14 +2,14 @@ import { CompactPicker } from "react-color";
 import { useState } from "react";
 
 import Slider from "./Slider";
-import { useAudio, useDice } from "../../../contexts";
+import { useDice, useSFX } from "../../../contexts";
 
 import styles from "./Options.module.scss";
 import { validDice } from "../../../utils";
 import Credits from "./Credits";
 
 const Options = ({}) => {
-  const { volumes, updateVolume } = useAudio();
+  const { volumes, updateVolume } = useSFX();
   const { diceAttributes, diceOptions, updateAttributes, updateOptions, gravity, setGravity } =
     useDice();
   const [selectedForColor, setSelectedForColor] = useState("D4");

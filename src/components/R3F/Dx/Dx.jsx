@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConvexPolyhedron } from "@react-three/cannon";
-import { Text } from "@react-three/drei";
 import { Color } from "three";
 
-import { useAudio, useDice } from "../../../contexts";
+import { useSFX, useDiceActions } from "../../../contexts";
 
 import {
+  applyAtlasUVs,
   CannonUtils,
+  getDiceTexture,
   randomAngularVelocity,
   randomRotation,
   randomVelocity,
@@ -14,11 +15,14 @@ import {
   REST_INTERVAL,
   ZEROISH,
 } from "../../../utils";
-import font from "../../../../assets/fonts/TypeMachine.ttf";
+
+const NO_TINT = new Color(1, 1, 1);
+const REST_TINT = new Color(1.4, 1.4, 1.4);
+const REST_HOVER_TINT = new Color(1.2, 1.2, 1.2);
+const TEXT_SIZE = 0.4;
 
 const Dx = ({
   id,
-  children,
   inertiaMod,
   geometry,
   position,
@@ -30,17 +34,15 @@ const Dx = ({
   shouldReroll,
   rerollTime,
 }) => {
-  const { playContactSFX } = useAudio();
-  const { diceInPlay, diceOptions, onDieResolve, resetDie } = useDice();
+  const { playContactSFX } = useSFX();
+  const { diceOptions, onDieResolve, resetDie } = useDiceActions();
   const [collidingPlane, setCollidingPlane] = useState(false);
-  const [lastContactId, setLastContactId] = useState(null);
   const [hovered, setHover] = useState(false);
   const [lowVelocity, setLowVelocity] = useState(false);
   const [atRest, setAtRest] = useState(false);
   const [roll, setRoll] = useState(null);
   const [shouldReset, setShouldReset] = useState(false);
-  let restInterval;
-  let rerollInterval;
+  const [texture, setTexture] = useState(null);
 
   const onCollideBegin = useCallback((e) => {
     if (e.body.geometry.type === "PlaneGeometry") {
@@ -50,9 +52,6 @@ const Dx = ({
 
   const onCollide = useCallback((e) => {
     playContactSFX(e.contact.impactVelocity);
-    if (lastContactId !== e.contact.id) {
-      setLastContactId(e.contact.id);
-    }
   }, []);
 
   const onCollideEnd = useCallback((e) => {
@@ -78,11 +77,48 @@ const Dx = ({
     () => CannonUtils.getCentroids(geometry),
     [geometry]
   );
-  // const vertices = useMemo(() => CannonUtils.getVertices(geometry), [geometry]);
   const normals = useMemo(() => CannonUtils.getNormals(geometry), [geometry]);
+  const faceDirections = useMemo(
+    () => centroids.map((c) => c.clone().normalize()),
+    [centroids]
+  );
+
+  const cellWorldSize = useMemo(
+    () => applyAtlasUVs(geometry, centroids, normals),
+    [geometry, centroids, normals]
+  );
+  const fontFraction = (TEXT_SIZE * radius) / cellWorldSize;
+
+  useEffect(() => {
+    let active = true;
+    const highlightColor =
+      roll === null
+        ? null
+        : roll === 0
+        ? "red"
+        : roll === centroids.length - 1
+        ? "green"
+        : "blue";
+    getDiceTexture({
+      name: geometry.name,
+      faceCount: centroids.length,
+      color: `#${color.getHexString()}`,
+      textColor,
+      fontFraction,
+      highlightFace: roll,
+      highlightColor,
+    }).then((t) => {
+      if (active) {
+        setTexture(t);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [geometry.name, centroids.length, color, textColor, fontFraction, roll]);
 
   const resetRoll = useCallback(() => {
-    api.wakeUp(); // resumes physics on this object
+    api.wakeUp();
     setAtRest(false);
     setRoll(null);
     setHover(false);
@@ -93,39 +129,36 @@ const Dx = ({
     api.velocity.set(...randomVelocity());
     api.angularVelocity.set(...randomAngularVelocity());
     resetDie(id);
-  }, [api, resetDie]);
+  }, [api, id, resetDie]);
 
   useEffect(() => {
-    // onRest needs to be an effect, so the most up-to-date state and context are available
-    // the restInterval that triggers atRest captures a state from 500ms prior
-    if (atRest && diceInPlay[id] && !diceInPlay[id].resolved) {
-      api.velocity.set(0, 0, 0);
-      api.sleep(); // stops physics on this object
-
-      // use timeout of 0 to run immediately but async
-      setTimeout(() => {
-        const result = CannonUtils.getResult(
-          geometry.name,
-          ref.current.matrixWorld,
-          centroids
-        );
-  
-        // if (!result) {
-        //   resetRoll();
-        //   return;
-        // }
-
-        const resultFudge =
-          result === 0
-            ? "min"
-            : result === centroids.length - 1
-            ? "max"
-            : "neutral";
-        onDieResolve(id, result + 1, resultFudge);
-        setRoll(result);
-      }, 0);
+    if (!atRest || roll !== null) {
+      return;
     }
-  }, [api, atRest, centroids, diceInPlay, onDieResolve]);
+    api.velocity.set(0, 0, 0);
+    api.sleep();
+
+    const result = CannonUtils.getResult(
+      geometry.name,
+      ref.current.matrixWorld,
+      faceDirections
+    );
+
+    // a cocked die has no readable face, so roll it again
+    if (result === null) {
+      resetRoll();
+      return;
+    }
+
+    const resultFudge =
+      result === 0
+        ? "min"
+        : result === faceDirections.length - 1
+        ? "max"
+        : "neutral";
+    setRoll(result);
+    onDieResolve(id, result + 1, resultFudge);
+  }, [api, atRest, roll, faceDirections, geometry.name, id, onDieResolve, resetRoll]);
 
   useEffect(() => {
     // this effect checks the velocity of the die, and if any velocity values are low enough,
@@ -137,10 +170,9 @@ const Dx = ({
         Math.abs(velocity[1]) < inertiaFactor ||
         Math.abs(velocity[2]) < inertiaFactor
       ) {
-        const x = Math.pow(Math.abs(velocity[0]), 2);
-        const y = Math.pow(Math.abs(velocity[1]), 2);
-        const z = Math.pow(Math.abs(velocity[2]), 2);
-        const magnitude = Math.sqrt(x + y + z);
+        const magnitude = Math.sqrt(
+          velocity[0] ** 2 + velocity[1] ** 2 + velocity[2] ** 2
+        );
         if (magnitude < inertiaFactor) {
           if (!lowVelocity) {
             setLowVelocity(true);
@@ -154,34 +186,31 @@ const Dx = ({
   }, [api, inertiaMod, lowVelocity]);
 
   useEffect(() => {
-    // this effect checks if the die is low velocity,
-    // then if it's resting on an acceptable surface, as set by the user
-    // if so, then it starts an restInterval/timer to see if that persists for half a second.
-    // if so, sets atRest to true
+    // once the die stays at low velocity on an acceptable surface
+    // for a full REST_INTERVAL, consider it at rest
     if (
-      lowVelocity &&
-      (!diceOptions.restOnTable || collidingPlane) &&
-      !atRest
+      !lowVelocity ||
+      atRest ||
+      (diceOptions.restOnTable && !collidingPlane)
     ) {
-      restInterval = setInterval(() => {
-        setAtRest(true);
-      }, REST_INTERVAL);
+      return;
     }
-    return () => clearInterval(restInterval);
-  }, [atRest, collidingPlane, diceOptions, lowVelocity]);
+    const timer = setTimeout(() => setAtRest(true), REST_INTERVAL);
+    return () => clearTimeout(timer);
+  }, [atRest, collidingPlane, diceOptions.restOnTable, lowVelocity]);
 
   useEffect(() => {
     // this effect makes sure that any 'stuck' dice can still resolve, by rerolling
     // them after a timer
-    if (!atRest && shouldReroll) {
-      rerollInterval = setInterval(() => {
-        setShouldReset(true);
-      }, rerollTime * 1000);
-    } else {
-      clearInterval(rerollInterval);
+    if (atRest || !shouldReroll) {
+      return;
     }
-    return () => clearInterval(rerollInterval);
-  }, [atRest, shouldReroll]);
+    const interval = setInterval(
+      () => setShouldReset(true),
+      rerollTime * 1000
+    );
+    return () => clearInterval(interval);
+  }, [atRest, shouldReroll, rerollTime]);
 
   useEffect(() => {
     if (shouldReset) {
@@ -192,74 +221,33 @@ const Dx = ({
   useEffect(() => {
     // when the die first loads, spin it
     api.angularVelocity.set(...randomAngularVelocity());
-    // reset the roll
     setRoll(null);
   }, []);
 
-  const assignColor = useCallback(
-    // this callback sets the text color based on roll state
-    // Nat 1 turns red
-    // Nat 20 turns green
-    (index) => {
-      if (index === roll) {
-        if (index === 0) return "red";
-        if (index === centroids.length - 1) return "green";
-        return "blue";
-      }
-    },
-    [roll]
-  );
-
   return (
-    <>
-      <mesh
-        ref={ref}
-        receiveShadow
-        castShadow
-        onClick={(event) => {
-          if (atRest) {
-            resetRoll();
-          }
-        }}
-        onPointerOver={(event) => setHover(true)}
-        onPointerOut={(event) => setHover(false)}
-      >
-        {children}
+    <mesh
+      ref={ref}
+      geometry={geometry}
+      receiveShadow
+      castShadow
+      onClick={() => {
+        if (atRest) {
+          resetRoll();
+        }
+      }}
+      onPointerOver={() => setHover(true)}
+      onPointerOut={() => setHover(false)}
+    >
+      {texture ? (
         <meshStandardMaterial
-          color={
-            hovered && atRest
-              ? color.clone().add(new Color(0.2, 0.2, 0.2))
-              : atRest
-              ? color.clone().add(new Color(0.5, 0.5, 0.5))
-              : color
-          }
+          key="textured"
+          map={texture}
+          color={atRest ? (hovered ? REST_HOVER_TINT : REST_TINT) : NO_TINT}
         />
-        {centroids.map((centroid, index) => {
-          // this quaternion represents a rotation
-          // equal to the orientation of the face normal
-          const quaternion = CannonUtils.calculateFaceQuaternion(
-            normals[index]
-          );
-
-          return (
-            <Text
-              mass={0}
-              key={index}
-              font={font}
-              position={centroid.multiplyScalar(1.03)}
-              fontSize={0.4 * radius}
-              color={assignColor(index) || textColor}
-              characters="0123456789."
-              quaternion={quaternion}
-              // castShadow
-              // receiveShadow
-            >
-              {`${index + 1}` + `${index === 5 || index === 8 ? "." : ""}`}
-            </Text>
-          );
-        })}
-      </mesh>
-    </>
+      ) : (
+        <meshStandardMaterial key="plain" color={color} />
+      )}
+    </mesh>
   );
 };
 

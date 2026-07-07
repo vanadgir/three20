@@ -30,6 +30,15 @@ const AudioContext = createContext({
   updateVolume: (key, value) => undefined,
 });
 
+// SFX callbacks are stable across renders, so consumers of this context
+// (every die) don't re-render when BGM playback state ticks
+const SFXContext = createContext({
+  volumes: { current: defaultVolumes },
+  playContactSFX: (impactVelocity) => undefined,
+  playRollResultSFX: (roll) => undefined,
+  updateVolume: (key, value) => undefined,
+});
+
 const CONTACT_FACTOR = 20;
 const CONTACT_THRESHOLD = 0.0075;
 const CONTACT_DETUNE_RANGE = 300;
@@ -222,24 +231,50 @@ export const AudioProvider = ({ children }) => {
     bgmAudioRef.current.setVolume(volumes.current.global * volumes.current.bgm);
   }
 
+  const sfxValue = useMemo(
+    () => ({
+      volumes,
+      playContactSFX,
+      playRollResultSFX,
+      updateVolume,
+    }),
+    [playContactSFX, playRollResultSFX, updateVolume]
+  );
+
+  const audioValue = useMemo(
+    () => ({
+      bgmLoaded,
+      bgmPlaying,
+      playbackPosition,
+      trackDuration,
+      volumes,
+      nextTrack,
+      playContactSFX,
+      playFromPosition,
+      playRollResultSFX,
+      togglePlayback,
+      updateVolume,
+    }),
+    [
+      bgmLoaded,
+      bgmPlaying,
+      playbackPosition,
+      trackDuration,
+      nextTrack,
+      playContactSFX,
+      playFromPosition,
+      playRollResultSFX,
+      togglePlayback,
+      updateVolume,
+    ]
+  );
+
   return (
-    <AudioContext.Provider
-      value={{
-        bgmLoaded,
-        bgmPlaying,
-        playbackPosition,
-        trackDuration,
-        volumes,
-        nextTrack,
-        playContactSFX,
-        playFromPosition,
-        playRollResultSFX,
-        togglePlayback,
-        updateVolume,
-      }}
-    >
-      {children}
-    </AudioContext.Provider>
+    <SFXContext.Provider value={sfxValue}>
+      <AudioContext.Provider value={audioValue}>
+        {children}
+      </AudioContext.Provider>
+    </SFXContext.Provider>
   );
 };
 
@@ -248,4 +283,8 @@ export function useAudio() {
     throw new Error("AudioContext must be defined!");
   }
   return useContext(AudioContext);
+}
+
+export function useSFX() {
+  return useContext(SFXContext);
 }
